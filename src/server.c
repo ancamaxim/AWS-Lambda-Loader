@@ -87,7 +87,7 @@ static int lib_load(struct lib *lib)
 		else
 			fprintf(lib->output_fd, "Error: <%s> [<%s>", lib->libname, "run");
 
-		if (lib->filename != NULL)
+		if (lib->filename)
 			fprintf(lib->output_fd, " [<%s>]", lib->filename);
 
 		fprintf(lib->output_fd, "] could not be executed.\n");
@@ -104,8 +104,38 @@ static int lib_execute(struct lib *lib)
 {
 	/* TODO: Implement lib_execute(). */
 	void *func;
+	char *error;
+	char log_message[LOG_LENGTH];
 
 	if (lib->funcname)
+		func = dlsym(lib->handle, lib->funcname);
+	else
+		func = dlsym(lib->handle, "run");
+	
+	error = dlerror();
+
+	if (error) {
+		if (lib->funcname)
+			fprintf(lib->output_fd, "Error: <%s> [<%s>", lib->libname, lib->funcname);
+		else
+			fprintf(lib->output_fd, "Error: <%s> [<%s>", lib->libname, "run");
+
+		if (lib->filename)
+			fprintf(lib->output_fd, " [<%s>]", lib->filename);
+
+		fprintf(lib->output_fd, "] could not be executed.\n");
+
+		sprintf(log_message, "dlsym() failed: %s\n", error);
+		dlog(log_message, WARNING);
+
+		return -1;
+	}
+
+	if (lib->filename)
+		((void (*)(char *))func)(lib->filename);
+	else
+		((void (*)(void))func)();
+
 	return 0;
 }
 
