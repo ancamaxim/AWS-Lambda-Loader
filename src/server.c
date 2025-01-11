@@ -31,26 +31,13 @@
 static void sigsegv_handler(int signo)
 {
 	(void) signo;
-	// dlog("You received SIGSEGV. Execution failed, program terminated.", WARNING);
-
 	exit(EXIT_FAILURE);
 }
 
 static void sigint_handler(int signo)
 {
 	(void) signo;
-	// dlog("You received SIGINT. Execution interrupted.", WARNING);
-
 	exit(EXIT_SUCCESS);
-}
-
-static void sigchld_handler(int signo)
-{
-	(void) signo;
-	pid_t pid;
-
-	while ((pid = waitpid(-1, NULL, WNOHANG)) > 0)
-		printf("Child with PID %d terminated.\n", pid);
 }
 
 static int lib_prehooks(struct lib *lib)
@@ -58,25 +45,19 @@ static int lib_prehooks(struct lib *lib)
 	/* TODO: Implement lib_prehooks(). */
 	int rc;
 
-	lib->outputfile = strdup(OUTPUT_TEMPLATE);
-	lib->output_fd = mkstemp(lib->outputfile);
-
 	rc = dup2(lib->output_fd, STDOUT_FILENO);
 
 	struct sigaction sgn_act;
 	memset(&sgn_act, 0, sizeof(sgn_act));
 	sgn_act.sa_handler = sigsegv_handler;
+	sgn_act.sa_flags = SA_RESTART;
 	rc = sigaction(SIGSEGV, &sgn_act, NULL);
 	DIE(rc < 0, "sigaction");
 
 	memset(&sgn_act, 0, sizeof(sgn_act));
 	sgn_act.sa_handler = sigint_handler;
+	sgn_act.sa_flags = SA_SIGINFO;
 	rc = sigaction(SIGINT, &sgn_act, NULL);
-	DIE(rc < 0, "sigaction");
-
-	memset(&sgn_act, 0, sizeof(sgn_act));
-	sgn_act.sa_handler = sigchld_handler;
-	rc = sigaction(SIGCHLD, &sgn_act, NULL);
 	DIE(rc < 0, "sigaction");
 
 	return 0;
@@ -135,20 +116,15 @@ static int lib_execute(struct lib *lib)
 		}
 
 		write(lib->output_fd, log_message, strlen(log_message));
-		// sprintf(log_message, "dlsym() failed: %s\n", error);
 
 		return -1;
 	}
 
-	if (strlen(lib->filename)) {
-		((void (*)(char *))func)(lib->filename);
-		// flush(STDOUT_FILENO);
-		// printf("Yo my man\n");
-		// fflush(stdout);
-		
-	}
-	else
+	if (strlen(lib->filename))
+		((void (*)(char *))func)(lib->filename);	
+	else {
 		((void (*)(void))func)();
+	}
 
 	return 0;
 }
@@ -175,7 +151,6 @@ static int lib_close(struct lib *lib)
 
 		write(lib->output_fd, log_message, strlen(log_message));
 		sprintf(log_message, "dlclose() failed: %s\n", error);
-		dlog(log_message, WARNING);
 	}
 
 	return rc;
@@ -183,6 +158,7 @@ static int lib_close(struct lib *lib)
 
 static int lib_posthooks(struct lib *lib)
 {
+	(void) lib;
 	/* TODO: Implement lib_posthooks(). */
 	return 0;
 }
@@ -199,10 +175,12 @@ static int lib_run(struct lib *lib)
 	if (err)
 		return err;
 
+	dlog("Executing\n", INFO);
 	err = lib_execute(lib);
 	if (err)
 		return err;
 
+	dlog("Closing\n", INFO);
 	err = lib_close(lib);
 	if (err)
 		return err;
@@ -221,7 +199,14 @@ static int parse_command(const char *buf, char *name, char *func, char *params)
 	return ret;
 }
 
-int main(void)
+static void help()
+{
+	printf("The server is run using the following parameters:\n");
+	printf("1. \"--inet\"\n");
+	printf("2. \"--help\" for this info\n");
+}
+
+int main(int argc, char **argv)
 {
 	/* TODO: Implement server connection. */
 	int ret, pid;
@@ -235,6 +220,14 @@ int main(void)
 	struct sockaddr_in client_address_inet, server_address_inet;
 	struct sockaddr_un client_address_unix, server_address_unix;
 	socklen_t inet_length = sizeof(client_address_inet), unix_length = sizeof(client_address_unix);
+
+	for (int i = 0; i < argc; ++i) {
+		if (!strcmp(argv[i], "--inet")) {
+			network_socket_flag = 1;
+		} else if (!strcmp(argv[i], "--help")) {
+			help();
+		}
+	}
 
 	memset(&client_address_inet, 0, sizeof(client_address_inet));
 	memset(&client_address_unix, 0, sizeof(client_address_unix));
@@ -298,6 +291,12 @@ int main(void)
 			recv_socket(connectfd, buffer, sizeof(buffer));
 			parse_command(buffer, libname, funcname, filename);
 
+			lib.outputfile = strdup(OUTPUT_TEMPLATE);
+			lib.output_fd = mkstemp(lib.outputfile);
+			lib.libname = libname;
+			lib.filename = filename;
+			lib.funcname = funcname;
+
 			pid_t pid2;
 
 			pid2 = fork();
@@ -307,10 +306,10 @@ int main(void)
 				DIE(1, "fork() failed");
 				break;
 			case 0:
-				lib.libname = libname;
-				lib.filename = filename;
-				lib.funcname = funcname;
 				lib_run(&lib);
+				break;
+			default:
+				waitpid(pid2, NULL, 0);
 				send_socket(connectfd, lib.outputfile, strlen(lib.outputfile));
 			}
 
