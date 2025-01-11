@@ -44,8 +44,7 @@ static int lib_prehooks(struct lib *lib)
 	int rc;
 
 	lib->outputfile = strdup(OUTPUT_TEMPLATE);
-	rc = mkstemp(lib->outputfile);
-	DIE(rc == -1, "mkstemp");
+	lib->output_fd = mkstemp(lib->outputfile);
 	
 	struct sigaction sgn_act;
 	memset(&sgn_act, 0, sizeof(sgn_act));
@@ -161,6 +160,8 @@ int main(void)
 	/* TODO: Implement server connection. */
 	int ret;
 	struct lib lib;
+	
+
 
 	while (1) {
 		/* TODO - get message from client */

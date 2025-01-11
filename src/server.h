@@ -11,6 +11,8 @@ typedef void (*lambda_param_func_t)(const char *);
 
 struct lib {
 	char *outputfile;
+	int output_fd;
+
 	char *libname;
 	char *funcname;
 	char *filename;
