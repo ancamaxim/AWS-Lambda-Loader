@@ -18,14 +18,13 @@
 
 #include "ipc.h"
 #include "server.h"
-#include "log.h"
 
 #ifndef OUTPUT_TEMPLATE
 #define OUTPUT_TEMPLATE "../checker/output/out-XXXXXX"
 #endif
 
-#ifndef LOG_FILE
-#define LOG_FILE "server.log"
+#ifndef NMAX
+#define NMAX 256
 #endif
 
 static void sigsegv_handler(int signo)
@@ -67,7 +66,7 @@ static int lib_load(struct lib *lib)
 {
 	/* TODO: Implement lib_load(). */
 	void *library_handle;
-	char log_message[LOG_LENGTH];
+	char log_message[NMAX];
 	char *error;
 
 	library_handle = dlopen(lib->libname, RTLD_LAZY);
@@ -96,7 +95,7 @@ static int lib_execute(struct lib *lib)
 	/* TODO: Implement lib_execute(). */
 	void *func;
 	char *error;
-	char log_message[LOG_LENGTH];
+	char log_message[NMAX];
 
 	if (strlen(lib->funcname))
 		func = dlsym(lib->handle, lib->funcname);
@@ -132,7 +131,7 @@ static int lib_execute(struct lib *lib)
 static int lib_close(struct lib *lib)
 {
 	/* TODO: Implement lib_close(). */
-	char log_message[LOG_LENGTH];
+	char log_message[NMAX];
 	char *error;
 	int rc;
 
@@ -175,12 +174,10 @@ static int lib_run(struct lib *lib)
 	if (err)
 		return err;
 
-	dlog("Executing\n", INFO);
 	err = lib_execute(lib);
 	if (err)
 		return err;
 
-	dlog("Closing\n", INFO);
 	err = lib_close(lib);
 	if (err)
 		return err;
@@ -213,9 +210,9 @@ int main(int argc, char **argv)
 	struct lib lib;
 	int listenfd, connectfd;
 	int network_socket_flag = 0;
-	int n_clients = 100; // to get from argv or from STDIN, set to 1 as default
-	char libname[LOG_LENGTH], filename[LOG_LENGTH], funcname[LOG_LENGTH];
-	char buffer[LOG_LENGTH];
+	int n_clients = 100; // to get from argv or from STDIN, set to 100 as default
+	char libname[NMAX], filename[NMAX], funcname[NMAX];
+	char buffer[NMAX];
 
 	struct sockaddr_in client_address_inet, server_address_inet;
 	struct sockaddr_un client_address_unix, server_address_unix;
@@ -226,6 +223,7 @@ int main(int argc, char **argv)
 			network_socket_flag = 1;
 		} else if (!strcmp(argv[i], "--help")) {
 			help();
+			return 0;
 		}
 	}
 
@@ -239,7 +237,7 @@ int main(int argc, char **argv)
 	if (network_socket_flag) {
 		listenfd = create_inet_socket();
 		server_address_inet.sin_family = AF_INET;
-		server_address_inet.sin_addr.s_addr = inet_addr(INADDR_ANY);
+		server_address_inet.sin_addr.s_addr = inet_addr(IP);
 		server_address_inet.sin_port = htons(PORT);
 
 		ret = bind(listenfd, (struct sockaddr *) &server_address_inet, inet_length);
@@ -256,8 +254,6 @@ int main(int argc, char **argv)
 
 	ret = listen(listenfd, n_clients);
 
-	create_log(LOG_FILE);
-
 	while (1) {
 		/* TODO - get message from client */
 
@@ -269,9 +265,9 @@ int main(int argc, char **argv)
 		memset(&inet_length, 0, sizeof(inet_length));
 		memset(&unix_length, 0, sizeof(unix_length));
 	
-		if (network_socket_flag) 
+		if (network_socket_flag) {
 			connectfd = accept(listenfd, (struct sockaddr *) &client_address_inet, &inet_length); 
-		else {
+		} else {
 			connectfd = accept(listenfd, (struct sockaddr *) &client_address_unix, &unix_length);
 		}
 
@@ -314,7 +310,6 @@ int main(int argc, char **argv)
 			}
 
 			close(connectfd);
-			remove_log();
 			return 0;
 		default:
 			close(connectfd);
@@ -324,6 +319,5 @@ int main(int argc, char **argv)
 
 	close(connectfd);
 	close(listenfd);
-	remove_log();
 	return 0;
 }
