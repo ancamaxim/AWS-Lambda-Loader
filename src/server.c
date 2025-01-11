@@ -14,6 +14,7 @@
 #include <netinet/in.h>
 #include <sys/un.h>
 #include <arpa/inet.h>
+#include <wait.h>
 
 #include "ipc.h"
 #include "server.h"
@@ -29,6 +30,7 @@
 
 static void sigsegv_handler(int signo)
 {
+	(void) signo;
 	dlog("You received SIGSEGV. Execution failed, program terminated.", WARNING);
 
 	exit(EXIT_FAILURE);
@@ -36,6 +38,7 @@ static void sigsegv_handler(int signo)
 
 static void sigint_handler(int signo)
 {
+	(void) signo;
 	dlog("You received SIGINT. Execution interrupted.", WARNING);
 
 	exit(EXIT_SUCCESS);
@@ -43,7 +46,11 @@ static void sigint_handler(int signo)
 
 static void sigchld_handler(int signo)
 {
-	
+	(void) signo;
+	pid_t pid;
+
+	while ((pid = waitpid(-1, NULL, WNOHANG)) > 0)
+		printf("Child with PID %d terminated.\n", pid);
 }
 
 static int lib_prehooks(struct lib *lib)
@@ -90,17 +97,17 @@ static int lib_load(struct lib *lib)
 	error = dlerror();
 
 	if (error) {
-		if (lib->funcname)
-			fprintf(lib->output_fd, "Error: <%s> [<%s>", lib->libname, lib->funcname);
-		else
-			fprintf(lib->output_fd, "Error: <%s> [<%s>", lib->libname, "run");
+		if (lib->filename) {
+			sprintf(log_message, "Error: <%s> [<%s> [<%s>]] could not be executed.\n", lib->libname, lib->funcname, lib->filename);
+		} else {
+			if (lib->funcname)
+				sprintf(log_message, "Error: <%s> [<%s>] could not be executed.\n", lib->libname, lib->funcname);
+			else
+				sprintf(log_message, "Error: <%s> [<run>] could not be executed.\n", lib->libname);
+		}
 
-		if (lib->filename)
-			fprintf(lib->output_fd, " [<%s>]", lib->filename);
+		write(lib->output_fd, log_message, strlen(log_message));
 
-		fprintf(lib->output_fd, "] could not be executed.\n");
-
-		sprintf(log_message, "dlopen() failed: %s\n", error);
 		dlog(log_message, WARNING);
 
 		return -1;
@@ -123,15 +130,16 @@ static int lib_execute(struct lib *lib)
 	error = dlerror();
 
 	if (error) {
-		if (lib->funcname)
-			fprintf(lib->output_fd, "Error: <%s> [<%s>", lib->libname, lib->funcname);
-		else
-			fprintf(lib->output_fd, "Error: <%s> [<%s>", lib->libname, "run");
+		if (lib->filename) {
+			sprintf(log_message, "Error: <%s> [<%s> [<%s>]] could not be executed.\n", lib->libname, lib->funcname, lib->filename);
+		} else {
+			if (lib->funcname)
+				sprintf(log_message, "Error: <%s> [<%s>] could not be executed.\n", lib->libname, lib->funcname);
+			else
+				sprintf(log_message, "Error: <%s> [<run>] could not be executed.\n", lib->libname);
+		}
 
-		if (lib->filename)
-			fprintf(lib->output_fd, " [<%s>]", lib->filename);
-
-		fprintf(lib->output_fd, "] could not be executed.\n");
+		write(lib->output_fd, log_message, strlen(log_message));
 
 		sprintf(log_message, "dlsym() failed: %s\n", error);
 		dlog(log_message, WARNING);
@@ -150,7 +158,29 @@ static int lib_execute(struct lib *lib)
 static int lib_close(struct lib *lib)
 {
 	/* TODO: Implement lib_close(). */
-	return 0;
+	char log_message[LOG_LENGTH];
+	char *error;
+	int rc;
+
+	rc = dlclose(lib->handle);
+	error = dlerror();
+
+	if (error) {
+		if (lib->filename) {
+			sprintf(log_message, "Error: <%s> [<%s> [<%s>]] could not be executed.\n", lib->libname, lib->funcname, lib->filename);
+		} else {
+			if (lib->funcname)
+				sprintf(log_message, "Error: <%s> [<%s>] could not be executed.\n", lib->libname, lib->funcname);
+			else
+				sprintf(log_message, "Error: <%s> [<run>] could not be executed.\n", lib->libname);
+		}
+
+		write(lib->output_fd, log_message, strlen(log_message));
+		sprintf(log_message, "dlclose() failed: %s\n", error);
+		dlog(log_message, WARNING);
+	}
+
+	return rc;
 }
 
 static int lib_posthooks(struct lib *lib)
