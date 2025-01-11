@@ -62,7 +62,7 @@ static int lib_prehooks(struct lib *lib)
 	lib->output_fd = mkstemp(lib->outputfile);
 
 	rc = dup2(lib->output_fd, STDOUT_FILENO);
-	
+
 	struct sigaction sgn_act;
 	memset(&sgn_act, 0, sizeof(sgn_act));
 	sgn_act.sa_handler = sigsegv_handler;
@@ -93,17 +93,16 @@ static int lib_load(struct lib *lib)
 	error = dlerror();
 
 	if (error) {
-		if (lib->filename) {
+		if (strlen(lib->filename)) {
 			sprintf(log_message, "Error: %s %s %s could not be executed.\n", lib->libname, lib->funcname, lib->filename);
 		} else {
-			if (lib->funcname)
+			if (strlen(lib->funcname))
 				sprintf(log_message, "Error: %s %s could not be executed.\n", lib->libname, lib->funcname);
 			else
 				sprintf(log_message, "Error: %s run could not be executed.\n", lib->libname);
 		}
 
 		write(lib->output_fd, log_message, strlen(log_message));
-
 		return -1;
 	}
 
@@ -126,7 +125,7 @@ static int lib_execute(struct lib *lib)
 	error = dlerror();
 
 	if (error) {
-		if (lib->filename) {
+		if (strlen(lib->filename)) {
 			sprintf(log_message, "Error: %s %s %s could not be executed.\n", lib->libname, lib->funcname, lib->filename);
 		} else {
 			if (strlen(lib->funcname))
@@ -136,14 +135,18 @@ static int lib_execute(struct lib *lib)
 		}
 
 		write(lib->output_fd, log_message, strlen(log_message));
-
-		sprintf(log_message, "dlsym() failed: %s\n", error);
+		// sprintf(log_message, "dlsym() failed: %s\n", error);
 
 		return -1;
 	}
 
-	if (lib->filename)
+	if (strlen(lib->filename)) {
 		((void (*)(char *))func)(lib->filename);
+		// flush(STDOUT_FILENO);
+		// printf("Yo my man\n");
+		// fflush(stdout);
+		
+	}
 	else
 		((void (*)(void))func)();
 
@@ -161,10 +164,10 @@ static int lib_close(struct lib *lib)
 	error = dlerror();
 
 	if (error) {
-		if (lib->filename) {
+		if (strlen(lib->filename)) {
 			sprintf(log_message, "Error: %s %s %s could not be executed.\n", lib->libname, lib->funcname, lib->filename);
 		} else {
-			if (lib->funcname)
+			if (strlen(lib->funcname))
 				sprintf(log_message, "Error: %s %s could not be executed.\n", lib->libname, lib->funcname);
 			else
 				sprintf(log_message, "Error: %s run could not be executed.\n", lib->libname);
@@ -237,6 +240,9 @@ int main(void)
 	memset(&client_address_unix, 0, sizeof(client_address_unix));
 	memset(&server_address_inet, 0, sizeof(server_address_inet));
 	memset(&server_address_unix, 0, sizeof(server_address_unix));
+
+	setvbuf(stdout, NULL, 0, 0);
+
 	if (network_socket_flag) {
 		listenfd = create_inet_socket();
 		server_address_inet.sin_family = AF_INET;

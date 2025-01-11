@@ -1,7 +1,7 @@
 #ifndef _LOG_H
 #define _LOG_H
 
-#define LOG_LENGTH 128
+#define LOG_LENGTH 1024
 
 enum log_t {
     WARNING,

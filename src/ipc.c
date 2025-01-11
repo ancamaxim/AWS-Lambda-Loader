@@ -62,7 +62,7 @@ ssize_t send_socket(int fd, const char *buf, size_t len)
 {
 	/* TODO: Implement send_socket(). */
 	ssize_t rc;
-	rc = send(fd, buf, len, 0);
+	rc = write(fd, buf, len);
 	DIE(rc < 0, "write() failed");
 
 	return rc;
@@ -72,7 +72,7 @@ ssize_t recv_socket(int fd, char *buf, size_t len)
 {
 	/* TODO: Implement recv_socket(). */
 	ssize_t rc;
-	rc = recv(fd, buf, len, 0);
+	rc = read(fd, buf, len);
 	DIE(rc < 0, "recv() failed");
 
 	return rc;
