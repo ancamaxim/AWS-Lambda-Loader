@@ -16,9 +16,31 @@
 #define OUTPUT_TEMPLATE "../checker/output/out-XXXXXX"
 #endif
 
+static void sigsegv_handler(int signo)
+{
+	dlog("You received SIGSEGV. Execution failed, program terminated.", LOG_WARNING);
+
+	exit(EXIT_FAILURE);
+}
+
+static void sigint_handler(int signo)
+{
+	dlog("You received SIGINT. Execution interrupted.", LO);
+
+	exit(EXIT_FAILURE);
+}
+
 static int lib_prehooks(struct lib *lib)
 {
 	/* TODO: Implement lib_prehooks(). */
+	int fd;
+
+	lib->outputfile = strdup(OUTPUT_TEMPLATE);
+	fd = mkstemp(lib->outputfile);
+	DIE(fd == -1, "mkstemp");
+	
+
+	
 	return 0;
 }
 
