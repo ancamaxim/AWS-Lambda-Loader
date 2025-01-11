@@ -10,6 +10,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <sys/un.h>
+#include <arpa/inet.h>
 
 #include "ipc.h"
 #include "server.h"
@@ -17,6 +21,10 @@
 
 #ifndef OUTPUT_TEMPLATE
 #define OUTPUT_TEMPLATE "../checker/output/out-XXXXXX"
+#endif
+
+#ifndef LOG_FILE
+#define LOG_FILE "server.log"
 #endif
 
 static void sigsegv_handler(int signo)
@@ -189,15 +197,52 @@ int main(void)
 {
 	/* TODO: Implement server connection. */
 	int ret;
+	int connectfd, listenfd;
+	int network_conn_flag = 0, n_connect = 100;
 	struct lib lib;
 	
+	struct sockaddr_un client_unix, server_unix;
+	struct sockaddr_in server_inet, client_inet;
 
+	int inet_length = sizeof(struct sockaddr_in), unix_length = sizeof(struct sockaddr_un);
+
+	memset(&server_unix, 0, unix_length);
+	memset(&server_inet, 0, inet_length);
+	memset(&client_unix, 0, unix_length);
+	memset(&client_inet, 0, inet_length);
+
+	server_unix.sun_family = AF_UNIX;
+	snprintf(server_unix.sun_path, sizeof(SOCKET_NAME), "%s", SOCKET_NAME);
+
+	if (network_conn_flag) {
+		listenfd = create_inet_socket();
+		server_inet.sin_family = AF_INET;
+		server_inet.sin_port = htons(PORT);
+		server_inet.sin_addr.s_addr = inet_addr(IP);
+		ret = bind(listenfd, (struct sockaddr_in *) &server_inet, inet_length);
+		DIE(ret < 0, "bind failed");
+	} else {
+		listenfd = create_socket();
+		server_unix.sun_family = AF_UNIX;
+		snprintf(server_unix.sun_path, sizeof(SOCKET_NAME), "%s", SOCKET_NAME);
+
+		ret = bind(listenfd, (struct sockaddr_in *) &server_unix, unix_length);
+		DIE(ret < 0, "bind failed");
+	}
+
+	ret = listen(listenfd, n_connect);
+	create_log(LOG_FILE);
 
 	while (1) {
 		/* TODO - get message from client */
 		/* TODO - parse message with parse_command and populate lib */
 		/* TODO - handle request from client */
 		ret = lib_run(&lib);
+		
+		if (network_conn_flag)
+			connectfd = accept(listenfd, (struct sockaddr_in *) &client_inet, inet_length);
+		else
+			connectfd = accept(listenfd, (struct sockaddr_in *) &client_unix, unix_length)
 	}
 
 	return 0;
