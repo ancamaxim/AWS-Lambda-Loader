@@ -115,15 +115,16 @@ static int lib_execute(struct lib *lib)
 	error = dlerror();
 
 	if (error) {
-		if (lib->funcname)
-			fprintf(lib->output_fd, "Error: <%s> [<%s>", lib->libname, lib->funcname);
-		else
-			fprintf(lib->output_fd, "Error: <%s> [<%s>", lib->libname, "run");
+		if (lib->filename) {
+			sprintf(log_message, "Error: <%s> [<%s> [<%s>]] could not be executed.\n", lib->libname, lib->funcname, lib->filename);
+		} else {
+			if (lib->funcname)
+				sprintf(log_message, "Error: <%s> [<%s>] could not be executed.\n", lib->libname, lib->funcname);
+			else
+				sprintf(log_message, "Error: <%s> [<run>] could not be executed.\n", lib->libname);
+		}
 
-		if (lib->filename)
-			fprintf(lib->output_fd, " [<%s>]", lib->filename);
-
-		fprintf(lib->output_fd, "] could not be executed.\n");
+		write(lib->output_fd, log_message, strlen(log_message));
 
 		sprintf(log_message, "dlsym() failed: %s\n", error);
 		dlog(log_message, WARNING);
