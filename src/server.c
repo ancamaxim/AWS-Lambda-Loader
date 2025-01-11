@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
+#define _XOPEN_SOURCE 700
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -8,9 +9,11 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "ipc.h"
 #include "server.h"
+#include "log.h"
 
 #ifndef OUTPUT_TEMPLATE
 #define OUTPUT_TEMPLATE "../checker/output/out-XXXXXX"
@@ -18,29 +21,48 @@
 
 static void sigsegv_handler(int signo)
 {
-	dlog("You received SIGSEGV. Execution failed, program terminated.", LOG_WARNING);
+	dlog("You received SIGSEGV. Execution failed, program terminated.", WARNING);
 
 	exit(EXIT_FAILURE);
 }
 
 static void sigint_handler(int signo)
 {
-	dlog("You received SIGINT. Execution interrupted.", LO);
+	dlog("You received SIGINT. Execution interrupted.", WARNING);
 
-	exit(EXIT_FAILURE);
+	exit(EXIT_SUCCESS);
+}
+
+static void sigchld_handler(int signo)
+{
+	
 }
 
 static int lib_prehooks(struct lib *lib)
 {
 	/* TODO: Implement lib_prehooks(). */
-	int fd;
+	int rc;
 
 	lib->outputfile = strdup(OUTPUT_TEMPLATE);
-	fd = mkstemp(lib->outputfile);
-	DIE(fd == -1, "mkstemp");
+	rc = mkstemp(lib->outputfile);
+	DIE(rc == -1, "mkstemp");
 	
+	struct sigaction sgn_act;
+	memset(&sgn_act, 0, sizeof(sgn_act));
+	sgn_act.sa_handler = sigsegv_handler;
+	rc = sigaction(SIGSEGV, &sgn_act, NULL);
+	DIE(rc < 0, "sigaction");
 
-	
+	memset(&sgn_act, 0, sizeof(sgn_act));
+	sgn_act.sa_handler = sigint_handler;
+	rc = sigaction(SIGINT, &sgn_act, NULL);
+	DIE(rc < 0, "sigaction");
+
+	memset(&sgn_act, 0, sizeof(sgn_act));
+	sgn_act.sa_handler = sigchld_handler;
+	rc = sigaction(SIGCHLD, &sgn_act, NULL);
+	DIE(rc < 0, "sigaction");
+
 	return 0;
 }
 
