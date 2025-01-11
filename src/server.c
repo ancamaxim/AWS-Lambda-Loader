@@ -83,14 +83,14 @@ static int lib_load(struct lib *lib)
 
 	if (error) {
 		if (lib->funcname)
-			// fprintf(lib->outputfile, "Error: <%s> [<%s>", lib->libname, lib->funcname);
+			fprintf(lib->output_fd, "Error: <%s> [<%s>", lib->libname, lib->funcname);
 		else
-			fprintf(stderr, "")
+			fprintf(lib->output_fd, "Error: <%s> [<%s>", lib->libname, "run");
 
 		if (lib->filename != NULL)
-			// fprintf(lib->, " [<%s>]", lib->filename);
+			fprintf(lib->output_fd, " [<%s>]", lib->filename);
 
-		fprintf(stderr, "] could not be executed.\n");
+		fprintf(lib->output_fd, "] could not be executed.\n");
 
 		sprintf(log_message, "dlopen() failed: %s\n", error);
 		dlog(log_message, WARNING);
