@@ -60,6 +60,8 @@ static int lib_prehooks(struct lib *lib)
 
 	lib->outputfile = strdup(OUTPUT_TEMPLATE);
 	lib->output_fd = mkstemp(lib->outputfile);
+
+	rc = dup2(lib->output_fd, STDOUT_FILENO);
 	
 	struct sigaction sgn_act;
 	memset(&sgn_act, 0, sizeof(sgn_act));
@@ -88,21 +90,16 @@ static int lib_load(struct lib *lib)
 	char *error;
 
 	library_handle = dlopen(lib->libname, RTLD_LAZY);
-	if (!library_handle) {
-		printf("dlopen() failed miserably\n");
-		printf("%s\n", lib->libname);
-	}
-
 	error = dlerror();
 
 	if (error) {
 		if (lib->filename) {
-			sprintf(log_message, "Error: <%s> [<%s> [<%s>]] could not be executed.\n", lib->libname, lib->funcname, lib->filename);
+			sprintf(log_message, "Error: %s %s %s could not be executed.\n", lib->libname, lib->funcname, lib->filename);
 		} else {
 			if (lib->funcname)
-				sprintf(log_message, "Error: <%s> [<%s>] could not be executed.\n", lib->libname, lib->funcname);
+				sprintf(log_message, "Error: %s %s could not be executed.\n", lib->libname, lib->funcname);
 			else
-				sprintf(log_message, "Error: <%s> [<run>] could not be executed.\n", lib->libname);
+				sprintf(log_message, "Error: %s run could not be executed.\n", lib->libname);
 		}
 
 		write(lib->output_fd, log_message, strlen(log_message));
@@ -121,33 +118,30 @@ static int lib_execute(struct lib *lib)
 	char *error;
 	char log_message[LOG_LENGTH];
 
-	if (lib->funcname)
+	if (strlen(lib->funcname))
 		func = dlsym(lib->handle, lib->funcname);
 	else
 		func = dlsym(lib->handle, "run");
 	
 	error = dlerror();
 
-	printf("EXECUTING1\n");
 	if (error) {
 		if (lib->filename) {
-			sprintf(log_message, "Error: <%s> [<%s> [<%s>]] could not be executed.\n", lib->libname, lib->funcname, lib->filename);
+			sprintf(log_message, "Error: %s %s %s could not be executed.\n", lib->libname, lib->funcname, lib->filename);
 		} else {
-			if (lib->funcname)
-				sprintf(log_message, "Error: <%s> [<%s>] could not be executed.\n", lib->libname, lib->funcname);
+			if (strlen(lib->funcname))
+				sprintf(log_message, "Error: %s %s could not be executed.\n", lib->libname, lib->funcname);
 			else
-				sprintf(log_message, "Error: <%s> [<run>] could not be executed.\n", lib->libname);
+				sprintf(log_message, "Error: %s run could not be executed.\n", lib->libname);
 		}
 
 		write(lib->output_fd, log_message, strlen(log_message));
 
 		sprintf(log_message, "dlsym() failed: %s\n", error);
-		// dlog(log_message, WARNING);
 
 		return -1;
 	}
 
-	printf("EXECUTING2\n");
 	if (lib->filename)
 		((void (*)(char *))func)(lib->filename);
 	else
@@ -168,12 +162,12 @@ static int lib_close(struct lib *lib)
 
 	if (error) {
 		if (lib->filename) {
-			sprintf(log_message, "Error: <%s> [<%s> [<%s>]] could not be executed.\n", lib->libname, lib->funcname, lib->filename);
+			sprintf(log_message, "Error: %s %s %s could not be executed.\n", lib->libname, lib->funcname, lib->filename);
 		} else {
 			if (lib->funcname)
-				sprintf(log_message, "Error: <%s> [<%s>] could not be executed.\n", lib->libname, lib->funcname);
+				sprintf(log_message, "Error: %s %s could not be executed.\n", lib->libname, lib->funcname);
 			else
-				sprintf(log_message, "Error: <%s> [<run>] could not be executed.\n", lib->libname);
+				sprintf(log_message, "Error: %s run could not be executed.\n", lib->libname);
 		}
 
 		write(lib->output_fd, log_message, strlen(log_message));
@@ -193,18 +187,15 @@ static int lib_posthooks(struct lib *lib)
 static int lib_run(struct lib *lib)
 {
 	int err;
-	dup2(lib->output_fd, STDOUT_FILENO);
-	printf("Prehooking\n");
+
 	err = lib_prehooks(lib);
 	if (err)
 		return err;
 
-	printf("Loading\n");
 	err = lib_load(lib);
 	if (err)
 		return err;
 
-	printf("Executing\n");
 	err = lib_execute(lib);
 	if (err)
 		return err;
@@ -285,7 +276,6 @@ int main(void)
 			connectfd = accept(listenfd, (struct sockaddr *) &client_address_unix, &unix_length);
 		}
 
-		printf("FLAG2\n");
 		pid = fork();
 
 		switch (pid)
@@ -315,7 +305,6 @@ int main(void)
 				lib.filename = filename;
 				lib.funcname = funcname;
 				lib_run(&lib);
-				printf("Sending on the socket:%s\n", lib.outputfile);
 				send_socket(connectfd, lib.outputfile, strlen(lib.outputfile));
 			}
 
