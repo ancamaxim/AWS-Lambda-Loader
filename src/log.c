@@ -21,13 +21,13 @@ void dlog(char *message, enum log_t log)
     switch (log)
 	{
 	case INFO:
-		write(log_fd, log_info, sizeof(log_info));
+		write(log_fd, log_info, strlen(log_info));
 		break;
 	case DEBUG:
-		write(log_fd, log_debug, sizeof(log_debug));
+		write(log_fd, log_debug, strlen(log_debug));
 		break;
 	case WARNING:
-		write(log_fd, log_warning, sizeof(log_warning));
+		write(log_fd, log_warning, strlen(log_warning));
 		break;
 	default:
 		break;
