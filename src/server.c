@@ -143,7 +143,29 @@ static int lib_execute(struct lib *lib)
 static int lib_close(struct lib *lib)
 {
 	/* TODO: Implement lib_close(). */
-	return 0;
+	char log_message[LOG_LENGTH];
+	char *error;
+	int rc;
+
+	rc = dlclose(lib->handle);
+	error = dlerror();
+
+	if (error) {
+		if (lib->filename) {
+			sprintf(log_message, "Error: <%s> [<%s> [<%s>]] could not be executed.\n", lib->libname, lib->funcname, lib->filename);
+		} else {
+			if (lib->funcname)
+				sprintf(log_message, "Error: <%s> [<%s>] could not be executed.\n", lib->libname, lib->funcname);
+			else
+				sprintf(log_message, "Error: <%s> [<run>] could not be executed.\n", lib->libname);
+		}
+
+		write(lib->output_fd, log_message, strlen(log_message));
+		sprintf(log_message, "dlclose() failed: %s\n", error);
+		dlog(log_message, WARNING);
+	}
+
+	return rc;
 }
 
 static int lib_posthooks(struct lib *lib)
