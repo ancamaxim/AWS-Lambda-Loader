@@ -349,7 +349,7 @@ int main(int argc, char **argv)
 				waitpid(pid2, NULL, 0);
 				send_socket(connectfd, lib.outputfile, strlen(lib.outputfile));
 			}
-
+			free(lib.outputfile);
 			close(connectfd);
 			return 0;
 		default:
