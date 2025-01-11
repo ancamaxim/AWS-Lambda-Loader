@@ -10,8 +10,8 @@
 #define BUFSIZE 1024
 #define MAX_CLIENTS 1024
 #define SOCKET_NAME "/tmp/sohack.socket"
-#define IP "127.0.0.1"
-#define PORT 5555
+static const char IP[] = "127.0.0.1";
+#define PORT 5000
 
 #define DIE(assertion, call_description)				\
 	do {								\
