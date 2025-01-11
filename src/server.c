@@ -25,6 +25,8 @@ static int lib_prehooks(struct lib *lib)
 static int lib_load(struct lib *lib)
 {
 	/* TODO: Implement lib_load(). */
+	void *library_handle;
+
 	return 0;
 }
 
