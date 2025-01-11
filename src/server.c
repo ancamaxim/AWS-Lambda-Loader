@@ -226,54 +226,106 @@ static int parse_command(const char *buf, char *name, char *func, char *params)
 int main(void)
 {
 	/* TODO: Implement server connection. */
-	int ret;
-	int connectfd, listenfd;
-	int network_conn_flag = 0, n_connect = 100;
+	int ret, pid;
 	struct lib lib;
-	
-	struct sockaddr_un client_unix, server_unix;
-	struct sockaddr_in server_inet, client_inet;
+	int listenfd, connectfd;
+	int network_socket_flag = 0;
+	int n_clients = 100; // to get from argv or from STDIN, set to 1 as default
+	char libname[LOG_LENGTH], filename[LOG_LENGTH], funcname[LOG_LENGTH];
+	char buffer[LOG_LENGTH];
 
-	int inet_length = sizeof(struct sockaddr_in), unix_length = sizeof(struct sockaddr_un);
+	struct sockaddr_in client_address_inet, server_address_inet;
+	struct sockaddr_un client_address_unix, server_address_unix;
+	socklen_t inet_length = sizeof(client_address_inet), unix_length = sizeof(client_address_unix);
 
-	memset(&server_unix, 0, unix_length);
-	memset(&server_inet, 0, inet_length);
-	memset(&client_unix, 0, unix_length);
-	memset(&client_inet, 0, inet_length);
-
-	server_unix.sun_family = AF_UNIX;
-	snprintf(server_unix.sun_path, sizeof(SOCKET_NAME), "%s", SOCKET_NAME);
-
-	if (network_conn_flag) {
+	memset(&client_address_inet, 0, sizeof(client_address_inet));
+	memset(&client_address_unix, 0, sizeof(client_address_unix));
+	memset(&server_address_inet, 0, sizeof(server_address_inet));
+	memset(&server_address_unix, 0, sizeof(server_address_unix));
+	if (network_socket_flag) {
 		listenfd = create_inet_socket();
-		server_inet.sin_family = AF_INET;
-		server_inet.sin_port = htons(PORT);
-		server_inet.sin_addr.s_addr = inet_addr(IP);
-		ret = bind(listenfd, (struct sockaddr_in *) &server_inet, inet_length);
-		DIE(ret < 0, "bind failed");
+		server_address_inet.sin_family = AF_INET;
+		server_address_inet.sin_addr.s_addr = inet_addr(INADDR_ANY);
+		server_address_inet.sin_port = htons(PORT);
+
+		ret = bind(listenfd, (struct sockaddr *) &server_address_inet, inet_length);
+		DIE(ret < 0, "bind");
 	} else {
 		listenfd = create_socket();
-		server_unix.sun_family = AF_UNIX;
-		snprintf(server_unix.sun_path, sizeof(SOCKET_NAME), "%s", SOCKET_NAME);
+		server_address_unix.sun_family = AF_UNIX;
+		snprintf(server_address_unix.sun_path, sizeof(SOCKET_NAME), "%s", SOCKET_NAME);
 
-		ret = bind(listenfd, (struct sockaddr_in *) &server_unix, unix_length);
-		DIE(ret < 0, "bind failed");
+		unlink(SOCKET_NAME);
+		ret = bind(listenfd, (struct sockaddr *) &server_address_unix, unix_length);
+		DIE(ret < 0, "bind");
 	}
 
-	ret = listen(listenfd, n_connect);
+	ret = listen(listenfd, n_clients);
+
 	create_log(LOG_FILE);
 
 	while (1) {
 		/* TODO - get message from client */
+
 		/* TODO - parse message with parse_command and populate lib */
 		/* TODO - handle request from client */
 		ret = lib_run(&lib);
-		
-		if (network_conn_flag)
-			connectfd = accept(listenfd, (struct sockaddr_in *) &client_inet, inet_length);
+
+		if (network_socket_flag)
+			connectfd = accept(listenfd, (struct sockaddr *) &client_address_inet, &inet_length);
 		else
-			connectfd = accept(listenfd, (struct sockaddr_in *) &client_unix, unix_length)
+			connectfd = accept(listenfd, (struct sockaddr *) &client_address_unix, &unix_length);
+		pid = fork();
+
+		switch (pid)
+		{
+		case -1:
+			DIE(1, "Fork failed.\n");
+			break;
+		case 0:
+			memset(filename, 0, sizeof(filename));
+			memset(funcname, 0, sizeof(funcname));
+			memset(libname, 0, sizeof(libname));
+			memset(buffer, 0, sizeof(buffer));
+
+			recv_socket(connectfd, buffer, sizeof(buffer));
+			parse_command(buffer, libname, funcname, filename);
+
+			pid_t pid2;
+
+			pid2 = fork();
+			switch (pid2)
+			{
+			case -1:
+				DIE(1, "fork() failed");
+				break;
+			case 0:
+				lib.libname = libname;
+				lib.filename = filename;
+				lib.funcname = funcname;
+				lib_run(&lib);
+				break;
+			default:
+				ret = waitpid(pid2, NULL, 0);
+				DIE(ret < 0, "waitpid() failed");
+				send_socket(connectfd, buffer, sizeof(buffer));
+			}
+
+			close(connectfd);
+			close(listenfd);
+			remove_log();
+			return 0;
+		default:
+			close(connectfd);
+			break;
+		}
 	}
 
+	while ((pid = waitpid(-1, NULL, WNOHANG)) > 0)
+		;
+
+	close(connectfd);
+	close(listenfd);
+	remove_log();
 	return 0;
 }
