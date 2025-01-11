@@ -70,13 +70,43 @@ static int lib_load(struct lib *lib)
 {
 	/* TODO: Implement lib_load(). */
 	void *library_handle;
+	char log_message[LOG_LENGTH];
+	char *error;
 
+	sprintf(log_message, "Opening library %s...\n", lib->outputfile);
+	dlog(log_message, INFO);
+
+	library_handle = dlopen(lib->outputfile, RTLD_LAZY);
+
+	lib->handle = library_handle;
+
+	error = dlerror();
+
+	if (error) {
+		if (lib->funcname)
+			// fprintf(lib->outputfile, "Error: <%s> [<%s>", lib->libname, lib->funcname);
+		else
+			fprintf(stderr, "")
+
+		if (lib->filename != NULL)
+			// fprintf(lib->, " [<%s>]", lib->filename);
+
+		fprintf(stderr, "] could not be executed.\n");
+
+		sprintf(log_message, "dlopen() failed: %s\n", error);
+		dlog(log_message, WARNING);
+
+		return -1;
+	}
 	return 0;
 }
 
 static int lib_execute(struct lib *lib)
 {
 	/* TODO: Implement lib_execute(). */
+	void *func;
+
+	if (lib->funcname)
 	return 0;
 }
 
