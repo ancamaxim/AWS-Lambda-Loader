@@ -32,4 +32,4 @@ client_inet.o: client_inet.c
 
 .PHONY: clean
 clean:
-	rm -rf server *.o libipc.so
+	rm -rf server *.o libipc.so client_inet

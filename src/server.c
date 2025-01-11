@@ -15,10 +15,12 @@
 #include <sys/un.h>
 #include <arpa/inet.h>
 #include <wait.h>
+#include <ctype.h>
 
 #include "ipc.h"
 #include "server.h"
 #include "log.h"
+
 
 #ifndef OUTPUT_TEMPLATE
 #define OUTPUT_TEMPLATE "../checker/output/out-XXXXXX"
@@ -213,6 +215,16 @@ static void help()
 	printf("3. \"--client_count=x\" where x is the maximum number of clients.\n");
 }
 
+static inline int contains_digits(const char *str)
+{
+	int len = strlen(str);
+	for (int i = 0; i < len; ++i) {
+		if (!isdigit(str[i]))
+			return -1;
+	}
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	/* TODO: Implement server connection. */
@@ -228,6 +240,8 @@ int main(int argc, char **argv)
 	struct sockaddr_un client_address_unix, server_address_unix;
 	socklen_t inet_length = sizeof(client_address_inet), unix_length = sizeof(client_address_unix);
 
+	create_log(SERVER_LOG);
+
 	for (int i = 0; i < argc; ++i) {
 		if (!strcmp(argv[i], "--inet")) {
 			network_socket_flag = 1;
@@ -235,10 +249,17 @@ int main(int argc, char **argv)
 			help();
 			return 0;
 		} else if (!strncmp(argv[i], "--client_count=", strlen("--client_count="))) {
-			// n_clients = atoi(argv[i] + )
-			// TODO
+			if (contains_digits(argv[i] + strlen("--client_count="))) {
+				help();
+				dlog("Server should be run using --client_count=x, where x is a number", WARNING);
+				return -1;
+			}
+			n_clients = atoi(argv[i] + strlen("--client_count="));
 		}
 	}
+
+	sprintf(buffer, "Running server with maximum %d connections.\n", n_clients);
+	dlog(buffer, INFO);
 
 	memset(&client_address_inet, 0, sizeof(client_address_inet));
 	memset(&client_address_unix, 0, sizeof(client_address_unix));
@@ -246,8 +267,6 @@ int main(int argc, char **argv)
 	memset(&server_address_unix, 0, sizeof(server_address_unix));
 
 	setvbuf(stdout, NULL, 0, 0);
-
-	create_log(SERVER_LOG);
 
 	if (network_socket_flag) {
 		dlog("You chose INET sockets!\n", INFO);
