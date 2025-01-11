@@ -18,6 +18,7 @@
 
 #include "ipc.h"
 #include "server.h"
+#include "log.h"
 
 #ifndef OUTPUT_TEMPLATE
 #define OUTPUT_TEMPLATE "../checker/output/out-XXXXXX"
@@ -83,6 +84,7 @@ static int lib_load(struct lib *lib)
 		}
 
 		write(lib->output_fd, log_message, strlen(log_message));
+		dlog(log_message, WARNING);
 		return -1;
 	}
 
@@ -115,7 +117,7 @@ static int lib_execute(struct lib *lib)
 		}
 
 		write(lib->output_fd, log_message, strlen(log_message));
-
+		dlog(log_message, WARNING);
 		return -1;
 	}
 
@@ -124,6 +126,8 @@ static int lib_execute(struct lib *lib)
 	else {
 		((void (*)(void))func)();
 	}
+
+	dlog("Executed function successfully!\n", INFO);
 
 	return 0;
 }
@@ -150,6 +154,7 @@ static int lib_close(struct lib *lib)
 
 		write(lib->output_fd, log_message, strlen(log_message));
 		sprintf(log_message, "dlclose() failed: %s\n", error);
+		dlog(log_message, WARNING);
 	}
 
 	return rc;
@@ -166,18 +171,22 @@ static int lib_run(struct lib *lib)
 {
 	int err;
 
+	dlog("Prehooking...\n", INFO);
 	err = lib_prehooks(lib);
 	if (err)
 		return err;
 
+	dlog("Loading library...\n", INFO);
 	err = lib_load(lib);
 	if (err)
 		return err;
 
+	dlog("Executing function...\n", INFO);
 	err = lib_execute(lib);
 	if (err)
 		return err;
 
+	dlog("Closing...\n", INFO);
 	err = lib_close(lib);
 	if (err)
 		return err;
@@ -199,8 +208,9 @@ static int parse_command(const char *buf, char *name, char *func, char *params)
 static void help()
 {
 	printf("The server is run using the following parameters:\n");
-	printf("1. \"--inet\"\n");
-	printf("2. \"--help\" for this info\n");
+	printf("1. \"--inet\" for INET sockets.\n");
+	printf("2. \"--help\" for this info.\n");
+	printf("3. \"--client_count=x\" where x is the maximum number of clients.\n");
 }
 
 int main(int argc, char **argv)
@@ -224,6 +234,9 @@ int main(int argc, char **argv)
 		} else if (!strcmp(argv[i], "--help")) {
 			help();
 			return 0;
+		} else if (!strncmp(argv[i], "--client_count=", strlen("--client_count="))) {
+			// n_clients = atoi(argv[i] + )
+			// TODO
 		}
 	}
 
@@ -234,7 +247,10 @@ int main(int argc, char **argv)
 
 	setvbuf(stdout, NULL, 0, 0);
 
+	create_log(SERVER_LOG);
+
 	if (network_socket_flag) {
+		dlog("You chose INET sockets!\n", INFO);
 		listenfd = create_inet_socket();
 		server_address_inet.sin_family = AF_INET;
 		server_address_inet.sin_addr.s_addr = inet_addr(IP);
@@ -243,6 +259,7 @@ int main(int argc, char **argv)
 		ret = bind(listenfd, (struct sockaddr *) &server_address_inet, inet_length);
 		DIE(ret < 0, "bind");
 	} else {
+		dlog("You chose UNIX sockets!\n", INFO);
 		listenfd = create_socket();
 		server_address_unix.sun_family = AF_UNIX;
 		snprintf(server_address_unix.sun_path, sizeof(SOCKET_NAME), "%s", SOCKET_NAME);
@@ -252,6 +269,7 @@ int main(int argc, char **argv)
 		DIE(ret < 0, "bind");
 	}
 
+	dlog("Waiting on connections...\n", INFO);
 	ret = listen(listenfd, n_clients);
 
 	while (1) {
@@ -266,7 +284,11 @@ int main(int argc, char **argv)
 		memset(&unix_length, 0, sizeof(unix_length));
 	
 		if (network_socket_flag) {
-			connectfd = accept(listenfd, (struct sockaddr *) &client_address_inet, &inet_length); 
+			connectfd = accept(listenfd, (struct sockaddr *) &client_address_inet, &inet_length);
+			memset(buffer, 0, sizeof(buffer));
+			sprintf(buffer, "Accepted connection from %s:%d\n",
+					inet_ntoa(client_address_inet.sin_addr), ntohs(client_address_inet.sin_port));
+			dlog(buffer, INFO);
 		} else {
 			connectfd = accept(listenfd, (struct sockaddr *) &client_address_unix, &unix_length);
 		}
@@ -319,5 +341,6 @@ int main(int argc, char **argv)
 
 	close(connectfd);
 	close(listenfd);
+	remove_log();
 	return 0;
 }

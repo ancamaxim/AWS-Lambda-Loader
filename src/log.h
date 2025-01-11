@@ -1,7 +1,7 @@
 #ifndef _LOG_H
 #define _LOG_H
 
-#define LOG_LENGTH 1024
+#define SERVER_LOG "server.log"
 
 enum log_t {
     WARNING,

@@ -10,7 +10,7 @@ build: outdir server client_inet
 outdir:
 	@mkdir -p $(OUTPUT_DIR)
 
-server: server.o libipc.so
+server: server.o log.o libipc.so
 	$(CC) -o $@ $^ $(LDLIBS) $(LDFLAGS)
 
 client_inet: client_inet.o $(LDLIBS)
