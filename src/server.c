@@ -31,7 +31,7 @@
 static void sigsegv_handler(int signo)
 {
 	(void) signo;
-	dlog("You received SIGSEGV. Execution failed, program terminated.", WARNING);
+	// dlog("You received SIGSEGV. Execution failed, program terminated.", WARNING);
 
 	exit(EXIT_FAILURE);
 }
@@ -39,7 +39,7 @@ static void sigsegv_handler(int signo)
 static void sigint_handler(int signo)
 {
 	(void) signo;
-	dlog("You received SIGINT. Execution interrupted.", WARNING);
+	// dlog("You received SIGINT. Execution interrupted.", WARNING);
 
 	exit(EXIT_SUCCESS);
 }
@@ -87,12 +87,11 @@ static int lib_load(struct lib *lib)
 	char log_message[LOG_LENGTH];
 	char *error;
 
-	sprintf(log_message, "Opening library %s...\n", lib->outputfile);
-	dlog(log_message, INFO);
-
-	library_handle = dlopen(lib->outputfile, RTLD_LAZY);
-
-	lib->handle = library_handle;
+	library_handle = dlopen(lib->libname, RTLD_LAZY);
+	if (!library_handle) {
+		printf("dlopen() failed miserably\n");
+		printf("%s\n", lib->libname);
+	}
 
 	error = dlerror();
 
@@ -108,10 +107,10 @@ static int lib_load(struct lib *lib)
 
 		write(lib->output_fd, log_message, strlen(log_message));
 
-		dlog(log_message, WARNING);
-
 		return -1;
 	}
+
+	lib->handle = library_handle;
 	return 0;
 }
 
@@ -129,6 +128,7 @@ static int lib_execute(struct lib *lib)
 	
 	error = dlerror();
 
+	printf("EXECUTING1\n");
 	if (error) {
 		if (lib->filename) {
 			sprintf(log_message, "Error: <%s> [<%s> [<%s>]] could not be executed.\n", lib->libname, lib->funcname, lib->filename);
@@ -142,11 +142,12 @@ static int lib_execute(struct lib *lib)
 		write(lib->output_fd, log_message, strlen(log_message));
 
 		sprintf(log_message, "dlsym() failed: %s\n", error);
-		dlog(log_message, WARNING);
+		// dlog(log_message, WARNING);
 
 		return -1;
 	}
 
+	printf("EXECUTING2\n");
 	if (lib->filename)
 		((void (*)(char *))func)(lib->filename);
 	else
@@ -192,15 +193,18 @@ static int lib_posthooks(struct lib *lib)
 static int lib_run(struct lib *lib)
 {
 	int err;
-
+	dup2(lib->output_fd, STDOUT_FILENO);
+	printf("Prehooking\n");
 	err = lib_prehooks(lib);
 	if (err)
 		return err;
 
+	printf("Loading\n");
 	err = lib_load(lib);
 	if (err)
 		return err;
 
+	printf("Executing\n");
 	err = lib_execute(lib);
 	if (err)
 		return err;
@@ -269,12 +273,19 @@ int main(void)
 
 		/* TODO - parse message with parse_command and populate lib */
 		/* TODO - handle request from client */
-		ret = lib_run(&lib);
-
-		if (network_socket_flag)
-			connectfd = accept(listenfd, (struct sockaddr *) &client_address_inet, &inet_length);
-		else
+		
+		memset(&client_address_inet, 0, sizeof(client_address_inet));
+		memset(&client_address_unix, 0, sizeof(client_address_unix));
+		memset(&inet_length, 0, sizeof(inet_length));
+		memset(&unix_length, 0, sizeof(unix_length));
+	
+		if (network_socket_flag) 
+			connectfd = accept(listenfd, (struct sockaddr *) &client_address_inet, &inet_length); 
+		else {
 			connectfd = accept(listenfd, (struct sockaddr *) &client_address_unix, &unix_length);
+		}
+
+		printf("FLAG2\n");
 		pid = fork();
 
 		switch (pid)
@@ -304,15 +315,11 @@ int main(void)
 				lib.filename = filename;
 				lib.funcname = funcname;
 				lib_run(&lib);
-				break;
-			default:
-				ret = waitpid(pid2, NULL, 0);
-				DIE(ret < 0, "waitpid() failed");
-				send_socket(connectfd, buffer, sizeof(buffer));
+				printf("Sending on the socket:%s\n", lib.outputfile);
+				send_socket(connectfd, lib.outputfile, strlen(lib.outputfile));
 			}
 
 			close(connectfd);
-			close(listenfd);
 			remove_log();
 			return 0;
 		default:
@@ -320,9 +327,6 @@ int main(void)
 			break;
 		}
 	}
-
-	while ((pid = waitpid(-1, NULL, WNOHANG)) > 0)
-		;
 
 	close(connectfd);
 	close(listenfd);
