@@ -12,7 +12,7 @@ check:
 
 client: client.o $(LDLIBS)
 
-client.o: client.c
+client.o: client.cpp
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 $(LDLIBS):

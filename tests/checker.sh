@@ -447,7 +447,7 @@ run_tests() {
     'test_harness         1 "Basic response"               5 test_simple_response 1    "${CHECKER_DIR}/libbasic.so"'
     'test_harness         2 "Basic file"                   5 test_output_exists   1    "${CHECKER_DIR}/libbasic.so"'
     'test_harness         3 "Basic file content"           5 test_output_with_ref 1    "${CHECKER_DIR}/libbasic.so"'
-    'test_harness         4 "Basic cat file content"      10 test_output_with_ref 1    "${CHECKER_DIR}/libbasic.so"      "cat"   "$CHECKER_DIR/client.c"'
+    'test_harness         4 "Basic cat file content"      10 test_output_with_ref 1    "${CHECKER_DIR}/libbasic.so"      "cat"   "$CHECKER_DIR/client.cpp"'
 
     'test_harness         5 "Wrong library"               10 test_output_with_ref 1    "${CHECKER_DIR}/libfictional.so"  "solve" "all_my_problems"'
     'test_harness         6 "Wrong function"              10 test_output_with_ref 1    "${CHECKER_DIR}/libbasic.so"      "solve" "all_my_problems"'
