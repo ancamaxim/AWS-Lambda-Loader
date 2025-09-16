@@ -30,18 +30,29 @@
 #define NMAX 256
 #endif
 
+/**
+ * @brief If segfault occurs, call exit
+ */
 static void sigsegv_handler(int signo)
 {
 	(void) signo;
 	exit(EXIT_FAILURE);
 }
 
+/**
+ * @brief If the server is interrupted (CTRL+C),
+ * call exit
+ */
 static void sigint_handler(int signo)
 {
 	(void) signo;
 	exit(EXIT_SUCCESS);
 }
 
+/**
+ * @brief: Set up signals and dup2
+ *  lib->output_fd to STDOUT_FILENO
+ */
 static int lib_prehooks(struct lib *lib)
 {
 	/* TODO: Implement lib_prehooks(). */
@@ -65,6 +76,9 @@ static int lib_prehooks(struct lib *lib)
 	return 0;
 }
 
+/**
+ * @brief Open dynamic library lib->libname
+ */
 static int lib_load(struct lib *lib)
 {
 	/* TODO: Implement lib_load(). */
@@ -94,6 +108,9 @@ static int lib_load(struct lib *lib)
 	return 0;
 }
 
+/**
+ * @brief: Execute function from dynamic library
+ */
 static int lib_execute(struct lib *lib)
 {
 	/* TODO: Implement lib_execute(). */
@@ -134,6 +151,9 @@ static int lib_execute(struct lib *lib)
 	return 0;
 }
 
+/**
+ * @brief Close the dynamic library
+ */
 static int lib_close(struct lib *lib)
 {
 	/* TODO: Implement lib_close(). */
@@ -169,6 +189,9 @@ static int lib_posthooks(struct lib *lib)
 	return 0;
 }
 
+/**
+ * @brief logic for the lifetime of the lib
+ */
 static int lib_run(struct lib *lib)
 {
 	int err;
