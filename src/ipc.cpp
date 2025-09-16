@@ -11,6 +11,9 @@
 
 #include "ipc.h"
 
+/**
+ * @brief Created a Unix TCP Socket
+ */
 int create_socket(void)
 {
 	/* TODO: Implement create_socket(). */
@@ -20,6 +23,9 @@ int create_socket(void)
 	return sockfd;
 }
 
+/**
+ * @brief Created an INET TCP Socket
+ */
 int create_inet_socket(void)
 {
 	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -28,6 +34,9 @@ int create_inet_socket(void)
 	return sockfd;
 }
 
+/**
+ * @brief Connects to UNIX socket
+ */
 int connect_socket(int fd)
 {
 	/* TODO: Implement connect_socket(). */
@@ -42,6 +51,9 @@ int connect_socket(int fd)
 	return connectfd;
 }
 
+/**
+ * @brief Connects to INET socket
+ */
 int connect_inet_socket(int fd)
 {
 	struct sockaddr_in addr;
@@ -58,6 +70,9 @@ int connect_inet_socket(int fd)
 	return -1;
 }
 
+/**
+ * @brief Sends buf of size len to socket
+ */
 ssize_t send_socket(int fd, const char *buf, size_t len)
 {
 	/* TODO: Implement send_socket(). */
@@ -68,6 +83,9 @@ ssize_t send_socket(int fd, const char *buf, size_t len)
 	return rc;
 }
 
+/**
+ * @brief Receives buf of size len from socket
+ */
 ssize_t recv_socket(int fd, char *buf, size_t len)
 {
 	/* TODO: Implement recv_socket(). */
