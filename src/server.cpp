@@ -30,6 +30,21 @@
 #define NMAX 256
 #endif
 
+
+/*
+ *  ████╗ ██╗    ██╗███████╗
+ * ██╔══██╗██║    ██║██╔════╝
+ * ███████║██║ █╗ ██║███████╗
+ * ██╔══██║██║███╗██║╚════██║
+ * ██║  ██║╚███╔███╔╝███████║
+ * ╚═╝  ╚═╝ ╚══╝╚══╝ ╚══════╝
+ */
+
+
+
+
+
+
 /**
  * @brief If segfault occurs, call exit
  */
@@ -384,5 +399,6 @@ int main(int argc, char **argv)
 	close(connectfd);
 	close(listenfd);
 	remove_log();
+
 	return 0;
 }
